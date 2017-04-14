@@ -86,7 +86,7 @@ export class Playlist extends Component {
     pathname: PropTypes.string.isRequired,
   };
 
-  static fetchData(store, { slug }) {
+  static fetchData1(store, { slug }) {
     if (slug === 'weekly-mix') {
       if (selectUserIsAuthenticated(store.getState())) {
         return [
