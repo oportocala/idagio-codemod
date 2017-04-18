@@ -1,53 +1,102 @@
-function addPropTypesImport(j, root) {
-  const importStatement = j.importDeclaration(
-    [j.importSpecifier(j.identifier('compose'))],
-    j.literal('redux')
-  );
-
-  const path = findReactRedux(j, root);
-
-  j(path).insertBefore(importStatement);
-}
-
-function findReactRedux(j, root) {
-  let target, targetName;
-
-  root
-    .find(j.ImportDeclaration)
-    .forEach(path => {
-      const name = path.value.source.value.toLowerCase();
-      if (name === 'react-redux') {
-        targetName = name;
-        target = path;
-      }
-    });
-
-  return target;
+function getFetchData(j, root) {
+  return root.find(j.MethodDefinition, {
+    key: {
+      name: 'fetchData'
+    },
+    static: true,
+  });
 }
 
 export default function(fileInfo, api) {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
-  let hasModifications = false;
 
   require('./utils/array-polyfills');
   const ReactUtils = require('./utils/ReactUtils')(j);
+  const ReduxUtils = require('./utils/ReduxUtils')(j);
 
-  if (ReactUtils.hasReact(root)) {
-    if (ReactUtils.hasModule(root, 'react-redux') && !ReactUtils.hasModule(root, 'redux') && ReactUtils.findReactES6ClassDeclaration(root)) {
-      addPropTypesImport(j, root);
-    }
+ if (ReduxUtils.isConnectedReactClass(root)) {
+   const classDef = root.find(j.ClassDeclaration);
 
-    const classDef = ReactUtils.findReactES6ClassDeclaration(root);
-    const ret = classDef.find(j.MethodDefinition)
-      .filter(node =>
-        (node.value.static === true && node.value.key.name === 'fetchData')
-      );
+   if (!ReduxUtils.hasImport(root, 'redux', 'compose')) {
+     const reduxImport = ReduxUtils.getImport(root, 'react-redux');
+     ReduxUtils.addImportBefore('redux', 'compose', reduxImport);
+   }
 
+   ReduxUtils.getConnectCall(root)
+     .replaceWith(nodePath => {
+       const args = [];
+       if (getFetchData(j, root).length > 0) {
+         getFetchData(j, root)
+           .replaceWith(nodePath => {
+           const newFn = j.functionDeclaration(j.identifier('fetchData'), nodePath.node.value.params, nodePath.node.value.body);
+           classDef.insertAfter(newFn);
+           return null;
+         });
 
-    //ret.replaceWith();
-    j(ret).insertAfter(classDef);
+         const dataComponentBehaviour = j.callExpression(
+           j.identifier('dataComponent'),
+           [j.identifier('fetchData')]
+         );
+
+         args.push(dataComponentBehaviour);
+
+         const hocImport = j.importDeclaration(
+           [j.importDefaultSpecifier(j.identifier('dataComponent'))],
+           j.literal('../lib/hoc/dataComponent')
+         );
+         const composeImport = ReduxUtils.getImport(root, 'react-redux');
+         composeImport.insertAfter(hocImport);
+       }
+
+       // chrome
+       classDef
+         .find(j.ClassProperty, {
+           key: {
+             name: 'chrome'
+           },
+           static: true,
+         })
+         .replaceWith(nodePath => {
+           const chromeDeclaration = j.variableDeclaration('const', [j.variableDeclarator(j.identifier('chrome'), nodePath.node.value)]);
+           const chromeComponent = j.callExpression(
+             j.identifier('chromeComponent'),
+             [j.identifier('chrome')]
+           );
+
+           classDef.insertAfter(chromeDeclaration);
+
+           args.push(chromeComponent);
+
+           const chromeHocImport = j.importDeclaration(
+             [j.importDefaultSpecifier(j.identifier('chromeComponent'))],
+             j.literal('../lib/hoc/chromeComponent')
+           );
+           const composeImport = ReduxUtils.getImport(root, 'react-redux');
+           composeImport.insertAfter(chromeHocImport);
+
+           return null;
+         });
+
+       args.push(nodePath.node);
+
+       if (ReduxUtils.hasImport(root, 'react-intl', 'injectIntl')) {
+         root.find(j.CallExpression, {
+          callee: {
+            name: 'injectIntl',
+          }
+         }).replaceWith(nodePath => {
+           args.push(j.identifier('injectIntl'));
+           return nodePath.node.arguments[0];
+         });
+       }
+
+       return j.callExpression(
+         j.identifier('compose'),
+         args
+       );
+     });
   }
 
-  return root.toSource({ quote: 'single' });
+  return root.toSource({ quote: 'single', trailingComma: true });
 }

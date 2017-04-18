@@ -9,7 +9,15 @@ class X extends Component {
     ];
   }
 
-  static chrome() {
+  static otherStaicFunction() {
+
+  }
+
+  static chrome = {};
+
+  fetchData() {
 
   }
 }
+
+connect(function () {} , {}, (X));
