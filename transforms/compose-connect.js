@@ -115,5 +115,5 @@ export default function(fileInfo, api) {
      });
   }
 
-  return root.toSource({ quote: 'single', trailingComma: true });
+  return root.toSource({ quote: 'single', trailingComma: true, wrapColumn: 20 });
 }
