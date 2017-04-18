@@ -1,3 +1,7 @@
+require('./utils/array-polyfills');
+import ru from './utils/ReactUtils';
+import ru2 from './utils/ReduxUtils';
+
 function getFetchData(j, root) {
   return root.find(j.MethodDefinition, {
     key: {
@@ -11,12 +15,19 @@ export default function(fileInfo, api) {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
 
-  require('./utils/array-polyfills');
-  const ReactUtils = require('./utils/ReactUtils')(j);
-  const ReduxUtils = require('./utils/ReduxUtils')(j);
+  const ReactUtils = ru(j);
+  const ReduxUtils = ru2(j);
 
  if (ReduxUtils.isConnectedReactClass(root)) {
-   const classDef = root.find(j.ClassDeclaration);
+   let classDef = root.find(j.ClassDeclaration);
+   const exportedDeclaration = root.
+     find(j.ExportNamedDeclaration, {
+       declaration: j.ClassDeclaration
+     });
+
+   if (exportedDeclaration.length) {
+     classDef = exportedDeclaration;
+   }
 
    if (!ReduxUtils.hasImport(root, 'redux', 'compose')) {
      const reduxImport = ReduxUtils.getImport(root, 'react-redux');
@@ -29,10 +40,16 @@ export default function(fileInfo, api) {
        if (getFetchData(j, root).length > 0) {
          getFetchData(j, root)
            .replaceWith(nodePath => {
-           const newFn = j.functionDeclaration(j.identifier('fetchData'), nodePath.node.value.params, nodePath.node.value.body);
-           classDef.insertAfter(newFn);
-           return null;
-         });
+
+             const newFn = j.functionDeclaration(
+               j.identifier('fetchData'),
+               nodePath.node.value.params,
+               nodePath.node.value.body
+             );
+
+             classDef.insertAfter(newFn);
+             return null;
+           });
 
          const dataComponentBehaviour = j.callExpression(
            j.identifier('dataComponent'),

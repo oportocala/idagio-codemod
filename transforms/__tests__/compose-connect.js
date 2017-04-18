@@ -2,7 +2,7 @@ const tests = [
   'no-react',
   'not-connected',
   'connected',
-  //'has-fetch-data',
+  'upgrade',
 ];
 
 const defineTest = require('jscodeshift/dist/testUtils').defineTest;
