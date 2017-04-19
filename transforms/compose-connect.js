@@ -60,7 +60,7 @@ export default function(fileInfo, api) {
 
          const hocImport = j.importDeclaration(
            [j.importDefaultSpecifier(j.identifier('dataComponent'))],
-           j.literal('../lib/hoc/dataComponent')
+           j.literal('../hoc/dataComponent')
          );
          const composeImport = ReduxUtils.getImport(root, 'react-redux');
          composeImport.insertAfter(hocImport);
@@ -87,7 +87,7 @@ export default function(fileInfo, api) {
 
            const chromeHocImport = j.importDeclaration(
              [j.importDefaultSpecifier(j.identifier('chromeComponent'))],
-             j.literal('../lib/hoc/chromeComponent')
+             j.literal('../hoc/chromeComponent')
            );
            const composeImport = ReduxUtils.getImport(root, 'react-redux');
            composeImport.insertAfter(chromeHocImport);
